@@ -340,10 +340,11 @@ class TankAnimator:
         
         # Store pump flow data instead of valve positions (pump control architecture)
         pump_flows = state.get('pumps', {'pump1': 250, 'pump2': 250})
+        drain_valves = state.get('drain_valves', {'u3': 0.5, 'u4': 0.5})
         self.valve_data["u13"].append(pump_flows.get('pump1', 250) / 300.0)  # Normalize to [0,1]
         self.valve_data["u24"].append(pump_flows.get('pump2', 250) / 300.0)  # Normalize to [0,1]
-        self.valve_data["u3"].append(0.5)  # Fixed drain valve
-        self.valve_data["u4"].append(0.5)  # Fixed drain valve
+        self.valve_data["u3"].append(drain_valves.get('u3', 0.5))
+        self.valve_data["u4"].append(drain_valves.get('u4', 0.5))
         
         # Update tank water levels with enhanced visualization
         for tank_id in range(1, 5):
@@ -407,8 +408,9 @@ class TankAnimator:
             if abs(state['heights'][tank_id] - sp) <= tolerance:
                 if self.tank_reached_time[tank_id] is not None:
                     t_settle = self.tank_reached_time[tank_id]
-                    tank_contribution = self.max_duration - t_settle
-                    total_score += tank_contribution
+                    if t_settle is not None:
+                        tank_contribution = self.max_duration - t_settle
+                        total_score += tank_contribution
         
         self.score_text.set_text(f'Score: {total_score:.0f}  |  Max possible: 1200')
         

@@ -94,6 +94,7 @@ class Simulator:
         
         # Apply control commands to system
         self.system.set_pump_flows(pump1_flow, pump2_flow)
+        self.system.set_drain_valves(valve3_opening, valve4_opening)
         
         # Update system state
         self.system.update(self.dt)
@@ -180,6 +181,10 @@ class Simulator:
             "pumps": {
                 "pump1": self.system.pump1_flow_command,
                 "pump2": self.system.pump2_flow_command,
+            },
+            "drain_valves": {
+                "u3": self.system.u3,
+                "u4": self.system.u4,
             },
         }
     

@@ -46,14 +46,14 @@ class QuadrupleTanksSystem:
         self.pump1_flow_max = 300.0  # cm^3/s (max pump capacity)
         self.pump2_flow_max = 300.0  # cm^3/s (max pump capacity)
         
-        # Fixed drain valves (now fixed, not controlled)
+        # Fixed coupling split for upper tank outflows
         # Upper tank coupling fixed at 0.7 for consistent disturbance
         self.u14_fixed = 0.7
         self.u23_fixed = 0.7
         
-        # Lower tank drain outlets fixed at 0.5 (neutral) for simplified system
-        self.u3_fixed = 0.5
-        self.u4_fixed = 0.5
+        # Controlled lower tank drain valves (0: closed, 1: fully open)
+        self.u3 = 0.5
+        self.u4 = 0.5
         
         # Internal time accumulator for sinusoidal disturbance
         self._t = 0.0
@@ -75,15 +75,19 @@ class QuadrupleTanksSystem:
     
     def set_valve_inputs(self, u13: float, u24: float, u3: float, u4: float) -> None:
         """
-        (Deprecated) Set valve openings for the system.
-        Use set_pump_flows() instead for pump-based control.
+        Set valve openings for the system.
         
         Args:
-            u13, u24, u3, u4: Valve openings (ignored in pump control mode)
+            u13, u24: Coupling valve openings (kept for compatibility, ignored)
+            u3: Drain valve opening for Tank 3 [0, 1]
+            u4: Drain valve opening for Tank 4 [0, 1]
         """
-        # This method is kept for backward compatibility but is not used in pump control
-        # Drain valves are fixed: self.u3_fixed = 0.5, self.u4_fixed = 0.5
-        pass
+        self.u3 = float(np.clip(u3, 0.0, 1.0))
+        self.u4 = float(np.clip(u4, 0.0, 1.0))
+
+    def set_drain_valves(self, u3: float, u4: float) -> None:
+        """Set lower tank drain valve openings (0: closed, 1: fully open)."""
+        self.set_valve_inputs(0.0, 0.0, u3, u4)
     
     def update(self, dt: float) -> Dict[int, float]:
         """
@@ -115,9 +119,9 @@ class QuadrupleTanksSystem:
         self.tanks[0].update(pump1_flow, dt, outflow_multiplier=1.0)  # Tank 1: all pump flow in, all outflow split
         self.tanks[1].update(pump2_flow, dt, outflow_multiplier=1.0)  # Tank 2: all pump flow in, all outflow split
         
-        # Lower tanks: receive coupling inflows and drain via fixed outlets
-        self.tanks[2].update(inflow_3, dt, outflow_multiplier=self.u3_fixed)  # Tank 3: fixed drain
-        self.tanks[3].update(inflow_4, dt, outflow_multiplier=self.u4_fixed)  # Tank 4: fixed drain
+        # Lower tanks: receive coupling inflows and drain via controllable outlets
+        self.tanks[2].update(inflow_3, dt, outflow_multiplier=self.u3)  # Tank 3 drain valve
+        self.tanks[3].update(inflow_4, dt, outflow_multiplier=self.u4)  # Tank 4 drain valve
         
         return self.get_heights()
     
@@ -150,8 +154,8 @@ class QuadrupleTanksSystem:
                 "u23_fixed": self.u23_fixed,
             },
             "drain_valves": {
-                "u3_fixed": self.u3_fixed,
-                "u4_fixed": self.u4_fixed,
+                "u3": self.u3,
+                "u4": self.u4,
             },
             "tank_details": [tank.get_state() for tank in self.tanks],
         }
